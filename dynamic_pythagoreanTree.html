@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    
+    <title>d2p1_pythTree.cdy</title>
+    <style type="text/css">
+        * {
+            margin: 0px;
+            padding: 0px;
+        }
+        
+        #CSConsole {
+            background-color: #FAFAFA;
+            border-top: 1px solid #333333;
+            bottom: 0px;
+            height: 200px;
+            overflow-y: scroll;
+            position: fixed;
+            width: 100%;
+        }
+    </style>
+    <link rel="stylesheet" href="https://cindyjs.org/dist/v0.8/CindyJS.css">
+    <script type="text/javascript" src="https://cindyjs.org/dist/v0.8/Cindy.js"></script>
+<script id="csinit" type="text/x-cindyscript">
+//Script (CindyScript)
+Q = [[0,0,1], [1,0,1], [1,1,1], [0,1,1]];
+
+pythtree(S,l,r,step) := (
+	drawpoly(S*l, color->(1,1/step+.1,1/step+.1));
+	drawpoly(S*r, color->(1,1/step+.1,1/step+.1));
+	if( step > 1,
+		(
+			pythtree(S*l, l, r, step-1);
+			pythtree(S*r, l, r, step-1);
+		)
+	);
+);
+;
+
+</script>
+<script id="csdraw" type="text/x-cindyscript">
+//Script (CindyScript)
+depth = round(|SlS,SlP|/|SlS,SlE|*13);
+print(depth);
+
+Q0 = Q*transpose(map(Q_4,Q_3, A, B));
+drawpoly(Q0, color->(1,0,0));
+
+trLeft = transpose(map(Q0_1, Q0_2, A, S));
+trRight = transpose(map(Q0_1, Q0_2, S, B));
+
+pythtree(Q0,trLeft,trRight,depth)
+;
+
+</script>
+    <script type="text/javascript">
+var cdy = CindyJS({
+  scripts: "cs*",
+  defaultAppearance: {
+    dimDependent: 0.7,
+    fontFamily: "sans-serif",
+    lineSize: 1,
+    pointSize: 5.0,
+    textsize: 12.0
+  },
+  angleUnit: "°",
+  geometry: [
+    {name: "A", type: "Free", pos: [4.0, -0.0, -0.8], color: [1.0, 0.0, 0.0], visible: false, pinned: true},
+    {name: "B", type: "Free", pos: [4.0, 0.0, 0.8], color: [1.0, 0.0, 0.0], visible: false, pinned: true},
+    {name: "C", type: "Mid", color: [1.0, 0.0, 0.0], args: ["A", "B"], visible: false, labeled: true},
+    {name: "C0", type: "CircleMP", color: [0.0, 0.0, 1.0], args: ["C", "A"], visible: false, printname: "$C_{0}$"},
+    {name: "S", type: "PointOnCircle", pos: [0.7651443410526338, -4.0, -0.8145046559141299], color: [1.0, 1.0, 1.0], args: ["C0"], size: 9.0},
+    {name: "SlS", type: "Free", pos: [4.0, 0.22857142857142856, -0.11428571428571428], color: [1.0, 0.0, 0.0], visible: false, pinned: true},
+    {name: "SlE", type: "Free", pos: [4.0, -2.527465489131937, -0.11391657625791919], color: [1.0, 0.0, 0.0], visible: false, labeled: true},
+    {name: "a", type: "Segment", color: [1.0, 1.0, 1.0], args: ["SlS", "SlE"], size: 3},
+    {name: "SlP", type: "PointOnSegment", pos: [4.0, -1.7332491136826043, -0.11402295199787851], color: [1.0, 1.0, 1.0], args: ["a"], size: 10.0}
+  ],
+  ports: [{
+    width: 1383,
+    height: 852,
+    id: "CSCanvas",
+    transform: [{visibleRect: [-40.81610390173948, 36.249638126281454, 41.768387866309226, -14.626708212386296]}],
+    background: "rgb(0,51,51)"
+  }],
+  csconsole: false,
+  use: ["katex"],
+  cinderella: {build: 2099, version: [3, 0, 2099]}
+});
+    </script>
+</head>
+<body>
+    <div id="CSCanvas"></div>
+</body>
+</html>
