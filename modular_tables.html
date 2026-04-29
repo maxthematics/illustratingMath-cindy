@@ -42,7 +42,7 @@ html, body {
 <script id="csinit" type="text/x-cindyscript">
 //Script (CindyScript)
 q = 5;
-N=50;
+N=99;
 o = "+";
 
 
@@ -84,7 +84,7 @@ scrW = |TR - TL|;
 scrH  = |TL - BL|;
 
 size = min(scrW, scrH);
-mtxSize = 0.8*size;
+mtxSize = 0.7*size;
 
 mtxTL = C + 1/2 * mtxSize * [-1,1];
 mtxBL = C + 1/2 * mtxSize * [-1,-1];
@@ -98,8 +98,8 @@ mtxTR = C + 1/2 * mtxSize * [1,1];
 
 ;
 //Slider
-slQA = mtxTL-[.1*scrW,mtxSize/N];
-slQB = mtxBL-[.1*scrW,-mtxSize/N];
+slQA = mtxTL-[.05*scrW,mtxSize/N];
+slQB = mtxBL-[.05*scrW,-mtxSize/N];
 
 draw([slQA, slQB], color -> [1, 1, 1], size -> 5);
 slQP.color = [1, 1, 1];
@@ -110,8 +110,10 @@ slQP.size = 11;
 
 q = max(min(round(N*|slQP-slQA|/|slQB-slQA|)+1, N+1), -1);
 
+mtxFontSize = round(5 + (100-5) * ((N-q)/(N-1))^8);
+
 slQP.xy = slQA + (q-1)/N * (slQB-slQA);
-drawText(slQP-[0,.2], "$q = " + q, xoffset->-100, color -> [1,1,1], size -> 30);
+drawText(slQP-[0,.2], q, xoffset->-50, color -> [1,1,1], size -> 30);
 ;
 //Script (CindyScript)
 cellS = mtxSize/(q+1);
@@ -121,8 +123,8 @@ cellCrd(a,b) := (
 );
 
 forall(0..q-1, k,
-	drawtext(cellCrd(k,1-.2), k, align -> "mid", size -> 24, color -> [1, 1, 1]);
-	drawtext(cellCrd(-1,-k-.2), k, align -> "mid", size -> 24, color -> [1, 1, 1]);
+	drawtext(cellCrd(k,1-.2), k, align -> "mid", size -> mtxFontSize, color -> [1, 1, 1]);
+	drawtext(cellCrd(-1,-k-.2), k, align -> "mid", size -> mtxFontSize, color -> [1, 1, 1]);
 );
 
 drawtext(cellCrd(-1,1-.2), o, align -> "mid", size -> 24, color -> [1, 1, 1]);
@@ -137,7 +139,7 @@ forall(0..q-1, k,
 					cellCrd(k,-l)+1/2*[+cellS, -cellS]];
 					
 		fillpoly(sq, color -> col(op(k,l)));
-		drawtext(cellCrd(k,-l-.1), op(k,l), align -> "mid", size -> 20);
+		drawtext(cellCrd(k,-l-.1), op(k,l), align -> "mid", size -> mtxFontSize);
 ));
 ;
 //Script (CindyScript)
@@ -159,6 +161,13 @@ drawText(BL, "Click on the operator in the top-left corner of the table to switc
 );
 ;
 
+
+drawText(BR, "v2026APR29 - Max Hoffmann",
+    align -> "right",
+    color -> [1, 1, 1],
+    xoffset -> -15,
+    yoffset -> 20
+);
 </script>
     <script type="text/javascript">
 var cdy = CindyJS({
