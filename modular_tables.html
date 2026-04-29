@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    
+    <title>Modulo Arithmetic </title>
+
+    <style>
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+#CSCanvas {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+}
+</style>
+    <style type="text/css">
+        * {
+            margin: 0px;
+            padding: 0px;
+        }
+        
+        #CSConsole {
+            background-color: #FAFAFA;
+            border-top: 1px solid #333333;
+            bottom: 0px;
+            height: 200px;
+            overflow-y: scroll;
+            position: fixed;
+            width: 100%;
+        }
+    </style>
+    <link rel="stylesheet" href="https://cindyjs.org/dist/v0.8/CindyJS.css">
+    <script type="text/javascript" src="https://cindyjs.org/dist/v0.8/Cindy.js"></script>
+<script id="csinit" type="text/x-cindyscript">
+//Script (CindyScript)
+q = 5;
+N=50;
+o = "+";
+
+
+
+slQP.xy = slQA + (q-1)/N * (slQB-slQA);
+
+
+op(a, b) := if(o == "+", mod(a + b, q), mod(a * b, q));
+
+col(k) := [1, 1-.75*k/q, 1-k/q];
+
+
+;
+
+</script>
+<script id="csmouseclick" type="text/x-cindyscript">
+//Script (CindyScript)
+mp = mouse();
+c  = cellCrd(-1, 1);          // Mittelpunkt der Operator-Zelle
+
+if(abs(mp.x - c.x) < cellS/2 & abs(mp.y - c.y) < cellS/2,
+    if(o == "+", o = "$\bullet", o = "+");
+);
+;
+
+</script>
+<script id="csdraw" type="text/x-cindyscript">
+//Script (CindyScript)
+
+TL = (screenbounds()_1).xy;  
+BL = (screenbounds()_2).xy; 
+BR = (screenbounds()_3).xy;
+TR = (screenbounds()_4).xy;
+
+C = (TL+BR) * 0.5;
+
+
+scrW = |TR - TL|;
+scrH  = |TL - BL|;
+
+size = min(scrW, scrH);
+mtxSize = 0.8*size;
+
+mtxTL = C + 1/2 * mtxSize * [-1,1];
+mtxBL = C + 1/2 * mtxSize * [-1,-1];
+mtxBR = C + 1/2 * mtxSize * [1,-1];
+mtxTR = C + 1/2 * mtxSize * [1,1];
+
+
+//drawpoly([mtxTL, mtxBL, mtxBR, mtxTR], color -> [1, 0, 0]);
+
+
+
+;
+//Slider
+slQA = mtxTL-[.1*scrW,mtxSize/N];
+slQB = mtxBL-[.1*scrW,-mtxSize/N];
+
+draw([slQA, slQB], color -> [1, 1, 1], size -> 5);
+slQP.color = [1, 1, 1];
+slQP.noborder=true;
+slQP.x = slQA.x;
+slQP.size = 11;
+
+
+q = max(min(round(N*|slQP-slQA|/|slQB-slQA|)+1, N+1), -1);
+
+slQP.xy = slQA + (q-1)/N * (slQB-slQA);
+drawText(slQP-[0,.2], "$q = " + q, xoffset->-100, color -> [1,1,1], size -> 30);
+;
+//Script (CindyScript)
+cellS = mtxSize/(q+1);
+
+cellCrd(a,b) := (
+	mtxTL + 0.5 * [cellS, -cellS] + cellS * [a+1,b-1];
+);
+
+forall(0..q-1, k,
+	drawtext(cellCrd(k,1-.2), k, align -> "mid", size -> 24, color -> [1, 1, 1]);
+	drawtext(cellCrd(-1,-k-.2), k, align -> "mid", size -> 24, color -> [1, 1, 1]);
+);
+
+drawtext(cellCrd(-1,1-.2), o, align -> "mid", size -> 24, color -> [1, 1, 1]);
+
+
+
+forall(0..q-1, k,
+	forall(0..q-1,l,
+		sq = [cellCrd(k,-l)+1/2*[-cellS, -cellS],
+					cellCrd(k,-l)+1/2*[-cellS, +cellS],
+					cellCrd(k,-l)+1/2*[+cellS, +cellS],
+					cellCrd(k,-l)+1/2*[+cellS, -cellS]];
+					
+		fillpoly(sq, color -> col(op(k,l)));
+		drawtext(cellCrd(k,-l-.1), op(k,l), align -> "mid", size -> 20);
+));
+;
+//Script (CindyScript)
+tab = if(o=="+", "Addition Table", "Multiplication table");
+drawText(TL, tab + " for ℤ/" + q + "ℤ",
+	align -> "left",
+	size -> 30,
+	color -> [1, 1, 1],
+	yoffset -> -50,
+	xoffset -> 20
+);
+
+drawText(BL, "Click on the operator in the top-left corner of the table to switch between $+$ and $\cdot$.",
+    align -> "right",
+    size -> 15,
+    color -> [1, 1, 1],
+    yoffset -> -50,
+    xoffset -> -15
+);
+;
+
+</script>
+    <script type="text/javascript">
+var cdy = CindyJS({
+  scripts: "cs*",
+  defaultAppearance: {
+    dimDependent: 0.7,
+    fontFamily: "sans-serif",
+    lineSize: 1,
+    pointSize: 5.0,
+    textsize: 12.0
+  },
+  angleUnit: "°",
+  geometry: [
+    {name: "slQP", type: "Free", pos: [0.7426124527428426, -4.0, 0.7359787575370177], dimDependent: 1, color: [1.0, 1.0, 1.0], size: 11.0}
+  ],
+  ports: [{
+    //width: 1659,
+    //height: 1046,
+    id: "CSCanvas",
+    transform: [{visibleRect: [-7.036885889744229, 4.337447354758547, 36.44242022230671, -23.076268252960126]}],
+    background: "rgb(0,51,51)"
+  }],
+  csconsole: false,
+  use: ["katex"],
+  cinderella: {build: 2124, version: [3, 0, 2124]}
+});
+    </script>
+</head>
+<body>
+    <div id="CSCanvas"></div>
+</body>
+</html>
