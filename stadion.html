@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Stadionbillard</title>
+
+    <!-- ============================================================
+         CSS: Canvas fills the entire browser window, no scrolling
+         ============================================================ -->
+    <style>
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+#CSCanvas {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+}
+    </style>
+    <style type="text/css">
+        * { margin: 0px; padding: 0px; }
+        #CSConsole {
+            background-color: #FAFAFA;
+            border-top: 1px solid #333333;
+            bottom: 0px;
+            height: 200px;
+            overflow-y: scroll;
+            position: fixed;
+            width: 100%;
+        }
+    </style>
+    <link rel="stylesheet" href="https://cindyjs.org/dist/v0.8/CindyJS.css">
+    <script type="text/javascript" src="https://cindyjs.org/dist/v0.8/Cindy.js"></script>
+
+<script id="csinit" type="text/x-cindyscript">
+// -------- Layout --------
+bgcolor   = 1/255 * [51, 44, 68];
+drawcolor = [1, 1, 1];
+btnCol    = [0.08, 0.45, 0.54];
+
+// -------- Stadion --------
+l = 7;
+r = 5;
+
+SW = [-l, -r];  SE = [l, -r];
+NW = [-l,  r];  NE = [l,  r];
+CW = [-l, 0];   CE = [l,  0];
+
+drawStadium() := (
+    drawcircle(CW, r, color -> drawcolor, size -> 5, layer -> -1);
+    drawcircle(CE, r, color -> drawcolor, size -> 5, layer -> -1);
+    fillpoly([SW, SE, NE, NW], color -> bgcolor, layer -> -100);
+    draw([SW, SE], color -> drawcolor, size -> 5);
+    draw([NW, NE], color -> drawcolor, size -> 5);
+);
+
+// -------- Slider-Werte (Initialwerte) --------
+vN = round(1 + |slNP - slNS| / |slNE - slNS| * 999);
+vD = round(|slDP - slDS| / |slDE - slDS| * 7);
+// Speed: logarithmisch von 0.1 bis 6 (Mitte = ca. 0.63)
+tSp   = |slSpP - slSpS| / |slSpE - slSpS|;
+speed = 0.1 * (6/0.1)^tSp;
+
+// -------- Sim-Parameter --------
+startC = [0, r * 0.25];
+br     = 0.1;
+eps    = 0.01;
+reff   = r - br - eps;
+
+running = false;
+
+// -------- Listen-basierter Sim-State --------
+positions  = [];
+velocities = [];
+colors     = [];
+sizes      = [];
+
+hsv2rgb(h) := (
+    i = floor(h * 6);
+    f = h * 6 - i;
+    j = mod(i, 6);
+    if(j == 0, [1, f, 0],
+    if(j == 1, [1-f, 1, 0],
+    if(j == 2, [0, 1, f],
+    if(j == 3, [0, 1-f, 1],
+    if(j == 4, [f, 0, 1],
+              [1, 0, 1-f]
+    )))));
+);
+
+resetSim() := (
+    N = vN;
+    d = 10^(-vD);
+    v0 = 3 * [r * 0.02, r * 0.015];
+
+    positions = apply(1..N, i,
+        if(i == N,
+            startC,
+            startC + (d/2) * [cos(2*pi*(i-1)/(N-1)), sin(2*pi*(i-1)/(N-1))]
+        )
+    );
+    velocities = apply(1..N, i, v0);
+    colors = apply(1..N, i, if(i == N, [1,1,1], hsv2rgb(5/6 * (i-1)/(N-1))));
+    sizes      = apply(1..N, i, if(i == N, 7, 5));
+);
+
+resetSim();
+
+// Animation laufen lassen, Steuerung erfolgt über 'running'
+playanimation();
+</script>
+
+<script id="csmousedown" type="text/x-cindyscript">
+// Start/Pause-Button
+if(mouse().x > btnLeft  & mouse().x < btnRight &
+   mouse().y > btnBottom & mouse().y < btnTop,
+    running = !running;
+);
+
+// Reset-Button
+if(mouse().x > btnRLeft  & mouse().x < btnRRight &
+   mouse().y > btnRBottom & mouse().y < btnRTop,
+    running = false;
+    resetSim();
+);
+</script>
+
+<script id="csdraw" type="text/x-cindyscript">
+drawStadium();
+
+// -------- Slider-Werte live berechnen --------
+vN = round(1 + |slNP - slNS| / |slNE - slNS| * 999);
+vD = round(|slDP - slDS| / |slDE - slDS| * 7);
+tSp   = |slSpP - slSpS| / |slSpE - slSpS|;
+speed = 0.1 * (6/0.1)^tSp;
+
+drawtext(slNP, vN, size -> 24, color -> [1,1,1], yoffset -> 20, align -> "mid");
+drawtext(slDP, format(10^(-vD), 9), size -> 24, color -> [1,1,1], yoffset -> 20, align -> "mid");
+
+// -------- Punkte zeichnen --------
+forall(1..length(positions), i,
+    draw(positions_i, color -> colors_i, size -> sizes_i);
+);
+
+// Slider-Beschriftungen (zentriert unter dem jeweiligen Slider)
+drawtext([-7.5, -7.3], "Number of Points", size -> 24, color -> [1,1,1], align -> "mid");
+drawtext([-2.0, -7.3], "Start Distance",   size -> 24, color -> [1,1,1], align -> "mid");
+drawtext([ 3.5, -7.3], "Animation Speed",  size -> 24, color -> [1,1,1], align -> "mid");
+
+// Einheitslabel "1" neben dem Referenzsegment
+drawtext([9.39, -6.35], "1", size -> 24, color -> [1,1,1], align -> "mid");
+
+// -------- Start/Pause-Button --------
+btnCx     = -11;
+btnCy     = -6.5;
+btnW      = 120 / screenresolution();
+btnH      = 60  / screenresolution();
+btnLeft   = btnCx - btnW/2;
+btnRight  = btnCx + btnW/2;
+btnBottom = btnCy - btnH/2;
+btnTop    = btnCy + btnH/2;
+
+rectBtn = [[btnLeft, btnBottom], [btnRight, btnBottom],
+           [btnRight, btnTop],   [btnLeft, btnTop]];
+
+fillpoly(rectBtn, color -> btnCol, alpha -> 1);
+drawtext([btnCx, btnCy],
+    if(running, "Pause", "Start"),
+    align -> "mid", size -> 24, color -> [1,1,1], yoffset -> -8);
+
+// -------- Reset-Button --------
+btnRCx     = 7;
+btnRCy     = -6.5;
+btnRLeft   = btnRCx - btnW/2;
+btnRRight  = btnRCx + btnW/2;
+btnRBottom = btnRCy - btnH/2;
+btnRTop    = btnRCy + btnH/2;
+
+rectBtnR = [[btnRLeft, btnRBottom], [btnRRight, btnRBottom],
+            [btnRRight, btnRTop],   [btnRLeft, btnRTop]];
+
+fillpoly(rectBtnR, color -> btnCol, alpha -> 1);
+drawtext([btnRCx, btnRCy], "Reset",
+    align -> "mid", size -> 24, color -> [1,1,1], yoffset -> -8);
+
+// -------- Credit (unten rechts, an Bildschirmgröße angepasst) --------
+sb       = screenbounds();
+rightX   = max(apply(sb, p, p.x));
+bottomY  = min(apply(sb, p, p.y));
+marginPx = 50 / screenresolution();
+drawtext([rightX - marginPx, bottomY + marginPx],
+    "Max Hoffmann, v2026APR13, max.hoffmann@math.uni-paderborn.de",
+    align -> "right", size -> 20, color -> [1,1,1]);
+
+</script>
+
+<script id="cstick" type="text/x-cindyscript">
+if(running,
+    forall(1..length(positions), i,
+        p  = positions_i + velocities_i * 0.1 * speed;
+        vv = velocities_i;
+        hit = false;
+        nn = [0, 0];
+
+        // ZONE 1: Mittelteil
+        if(abs(p.x) <= l,
+            if(p.y >  reff, hit = true; nn = [0, -1]; p = [p.x,  reff]);
+            if(p.y < -reff, hit = true; nn = [0,  1]; p = [p.x, -reff]);
+        );
+
+        // ZONE 2: rechter Halbkreis
+        if(p.x > l,
+            dd = dist(p, [l, 0]);
+            if(dd > reff,
+                hit = true;
+                nn = ([l, 0] - p) / dd;
+                p  = [l, 0] - nn * reff;
+            );
+        );
+
+        // ZONE 3: linker Halbkreis
+        if(p.x < -l,
+            dd = dist(p, [-l, 0]);
+            if(dd > reff,
+                hit = true;
+                nn = ([-l, 0] - p) / dd;
+                p  = [-l, 0] - nn * reff;
+            );
+        );
+
+        // Reflexion
+        if(hit, vv = vv - 2 * (vv * nn) * nn);
+
+        positions_i  = p;
+        velocities_i = vv;
+    );
+);
+</script>
+
+    <script type="text/javascript">
+var cdy = CindyJS({
+  scripts: "cs*",
+  defaultAppearance: {
+    dimDependent: 0.7,
+    fontFamily: "sans-serif",
+    lineSize: 1,
+    pointSize: 5.0,
+    textsize: 12.0
+  },
+  angleUnit: "°",
+  geometry: [
+    {name: "B",    type: "Free",    pos: [4.0, -2.888888888888889, 0.4444444444444444], color: [1.0, 0.0, 0.0], visible: false, pinned: true, labeled: true},
+    {name: "C",    type: "Free",    pos: [4.0, -2.6, 0.4], color: [1.0, 0.0, 0.0], visible: false, pinned: true, labeled: true},
+    {name: "a",    type: "Segment", color: [1.0, 1.0, 1.0], args: ["B", "C"], size: 7, printname: "1"},
+
+    // ---- Slider 1: Number of Points (x = -10 … -5) ----
+    {name: "slNS", type: "Free",    pos: [-9.5, -6.5, 1.0], color: [1.0, 0.0, 0.0], visible: false, pinned: true},
+    {name: "slNE", type: "Free",    pos: [ -5.0, -6.5, 1.0], color: [1.0, 0.0, 0.0], visible: false, pinned: true},
+    {name: "Sseg", type: "Segment", color: [1.0, 1.0, 1.0], args: ["slNS", "slNE"], size: 8},
+    {name: "slNP", type: "PointOnSegment", pos: [-7.0, -6.5, 1.0], color: [1.0, 1.0, 1.0], args: ["Sseg"], size: 10.0},
+
+    // ---- Slider 2: Start Distance (x = -4.5 … 0.5) ----
+    {name: "slDS",   type: "Free",    pos: [-4.5, -6.5, 1.0], color: [1.0, 0.0, 0.0], visible: false, pinned: true},
+    {name: "slDE",   type: "Free",    pos: [ 0.5, -6.5, 1.0], color: [1.0, 0.0, 0.0], visible: false, pinned: true},
+    {name: "slDseg", type: "Segment", color: [1.0, 1.0, 1.0], args: ["slDS", "slDE"], size: 8},
+    {name: "slDP",   type: "PointOnSegment", pos: [-2.0, -6.5, 1.0], color: [1.0, 1.0, 1.0], args: ["slDseg"], size: 10.0},
+
+    // ---- Slider 3: Animation Speed (x = 1 … 6) ----
+    {name: "slSpS",   type: "Free",    pos: [1.0, -6.5, 1.0], color: [1.0, 0.0, 0.0], visible: false, pinned: true},
+    {name: "slSpE",   type: "Free",    pos: [5.5, -6.5, 1.0], color: [1.0, 0.0, 0.0], visible: false, pinned: true},
+    {name: "slSpseg", type: "Segment", color: [1.0, 1.0, 1.0], args: ["slSpS", "slSpE"], size: 8},
+    {name: "slSpP",   type: "PointOnSegment", pos: [3.5, -6.5, 1.0], color: [1.0, 1.0, 1.0], args: ["slSpseg"], size: 10.0}
+  ],
+  behavior: [],
+  animation: {
+    autoplay: true,
+    controls: false,
+    speed: 0.5463917525773195,
+    speedRange: [0.0, 1.0],
+    accuracy: 1
+  },
+  autoplay: true,
+  animcontrols: false,
+  ports: [{
+    id: "CSCanvas",
+    transform: [{visibleRect: [-12.914920206013145, 5.637110500202475, 13.336267083717972, -9.058957870653808]}],
+    background: "rgb(51,44,68)"
+  }],
+  csconsole: false,
+  use: ["katex"],
+  cinderella: {build: 2124, version: [3, 0, 2124]}
+});
+    </script>
+</head>
+<body>
+    <div id="CSCanvas"></div>
+</body>
+</html>
