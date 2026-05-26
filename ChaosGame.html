@@ -258,10 +258,19 @@ playanimation();
     rDefault = N / (N + 3);
     rFrac    = |rLeft, rKnob| / |rLeft, rRight|;
     if(abs(rFrac - rDefault) < 0.02,
+        // Priority snap: N/(N+3)
         rKnob.xy         = rLeft.xy + rDefault * (rRight.xy - rLeft.xy);
         contractionRatio = rDefault;
     ,
+        // Secondary snaps: 0.1, 0.2, …, 0.9  (±0.5 % zone, so 0.x1 is still reachable)
         contractionRatio = rFrac;
+        repeat(9, k,
+            snapVal = k / 10;
+            if(abs(rFrac - snapVal) < 0.005,
+                rKnob.xy         = rLeft.xy + snapVal * (rRight.xy - rLeft.xy);
+                contractionRatio = snapVal;
+            );
+        );
     );
 
     rSnapPos = rLeft.xy + rDefault * (rRight.xy - rLeft.xy);
