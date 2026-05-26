@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Chaos Game</title>
+
+    <style>
+        html, body {
+            margin:   0;
+            padding:  0;
+            width:    100%;
+            height:   100%;
+            height:   100dvh;
+            overflow: hidden;
+        }
+        #CSCanvas {
+            position: fixed;
+            inset:    0;
+            width:    100vw;
+            height:   100vh;
+            height:   100dvh;
+        }
+    </style>
+
+    <link rel="stylesheet" href="https://cindyjs.org/dist/v0.8/CindyJS.css">
+    <script type="text/javascript" src="https://cindyjs.org/dist/v0.8/Cindy.js"></script>
+
+    <!-- ── Initialisation ───────────────────────────────────────────── -->
+    <script id="csinit" type="text/x-cindyscript">
+
+    // ── Parameters ────────────────────────────────────────────────────
+    N                = 3;
+    contractionRatio = N / (N + 3);
+    tickCounter      = 0;
+    speed            = 5;
+    colored          = true;   // false = white trail, true = hue-coded by vertex
+    guides           = true;   // false = hide corners/current-point/step-line (clean view)
+
+    // Track screen size to detect orientation changes
+    prevScrW = 0;
+    prevScrH = 0;
+
+    // Button hit-box half-extents (math units); centers computed each frame in csdraw
+    btnHW = 0.20;  btnHH = 0.12;
+    colorBtnCX = 0;  colorBtnCY  = 0;
+    guidesBtnCX = 0; guidesBtnCY = 0;
+
+    // Polygon scaling (recomputed in csdraw; initial values are overridden on first frame)
+    polyRadius = 1.0;  polyCX = 0;  polyCY = 0;
+
+    // ── Appearance ────────────────────────────────────────────────────
+    currentPoint.size = 7;
+    cornerColor   = [1, 1, 1];
+    selectedColor = [1, 0, 0];
+    trailColor    = [1, 1, 1];
+
+    selectedCorner = P1;
+    currentPos     = P1;
+
+    // ── Helpers ───────────────────────────────────────────────────────
+
+    // Format a value in [0,1] to exactly 4 decimal places ("0.DDDD")
+    fmt4(x) := (
+        d = round(x * 10000);
+        "0." + floor(d/1000) + floor(mod(d,1000)/100)
+             + floor(mod(d,100)/10) + mod(d,10)
+    );
+
+    reset() := (
+        trailPoints          = [];
+        trailGroups          = [];
+        repeat(36, trailGroups = trailGroups ++ [[]]);
+        selectedCorner.color = cornerColor;
+        selectedCorner       = P1;
+        currentPos           = P1;
+    );
+
+    reset();
+    activeVertices = [];
+
+    allVertices = [P1,  P2,  P3,  P4,  P5,  P6,  P7,  P8,  P9,  P10,
+                   P11, P12, P13, P14, P15, P16, P17, P18, P19, P20,
+                   P21, P22, P23, P24, P25, P26, P27, P28, P29, P30,
+                   P31, P32, P33, P34, P35, P36];
+
+    forall(allVertices, (#.visible = false; #.size = 10;));
+
+    updateVertices(numVertices) := (
+        forall(allVertices, #.visible = false);
+        activeVertices = allVertices_(1..numVertices);
+        repeat(numVertices, i,
+            activeVertices_i.xy = [polyCX + polyRadius * sin(i * 2 * pi / numVertices),
+                                   polyCY + polyRadius * cos(i * 2 * pi / numVertices)];
+        );
+        forall(activeVertices, #.visible = true);
+        forall(activeVertices, #.color   = cornerColor);
+        selectedCorner = P1;
+        currentPos     = P1;
+    );
+
+    rollDice() := (
+        cornerIdx            = ceil(random() * N);
+        selectedCorner.color = cornerColor;
+        selectedCorner       = activeVertices_cornerIdx;
+        selectedCorner.color = selectedColor;
+    );
+
+    showStep() := (
+        stepSegment.visible = true;
+        stepSegStart.xy     = currentPos.xy;
+        stepSegEnd.xy       = selectedCorner.xy;
+    );
+
+    movePoint() := (
+        currentPos      = currentPos + contractionRatio * (selectedCorner - currentPos);
+        currentPoint.xy = currentPos.xy;
+        trailPoints     = trailPoints ++ [currentPos.xy];
+        trailGroups_cornerIdx = trailGroups_cornerIdx ++ [currentPos.xy];
+    );
+
+playanimation();
+    updateVertices(N);
+    rollDice();
+    movePoint();
+
+    </script>
+
+    <!-- ── Mouse-drag ───────────────────────────────────────────────── -->
+    <script id="csmousedrag" type="text/x-cindyscript">
+
+    if(contains(allVertices, mover()),       reset(););
+    if(contains([nKnob, rKnob], mover()),   reset(););
+
+    </script>
+
+    <!-- ── Mouse-click: toggle buttons ──────────────────────────────── -->
+    <script id="csmousedown" type="text/x-cindyscript">
+
+    m = mouse();
+    if(abs(m.x - colorBtnCX)  < btnHW & abs(m.y - colorBtnCY)  < btnHH, colored = !colored;);
+    if(abs(m.x - guidesBtnCX) < btnHW & abs(m.y - guidesBtnCY) < btnHH, guides  = !guides; );
+
+    </script>
+
+    <!-- ── Draw (every frame) ───────────────────────────────────────── -->
+    <script id="csdraw" type="text/x-cindyscript">
+
+    // ── Trail ─────────────────────────────────────────────────────────
+    if(colored,
+        repeat(N, i,
+            drawall(trailGroups_i, color -> hue((i-1)/N), size -> 1, noborder -> true);
+        );
+    ,
+        drawall(trailPoints, size -> 1, color -> trailColor, noborder -> true);
+    );
+
+    // ── Screen bounds ─────────────────────────────────────────────────
+    sb   = screenbounds();
+    xs   = [sb_1.x, sb_2.x, sb_3.x, sb_4.x];
+    ys   = [sb_1.y, sb_2.y, sb_3.y, sb_4.y];
+    scrL = min(xs);  scrR = max(xs);
+    scrB = min(ys);  scrT = max(ys);
+    scrW = scrR - scrL;
+    scrH = scrT - scrB;
+
+    // ── Layout constants (used in resize-handler AND every-frame button placement) ──
+    outerPad = 0.10 * scrW;   // left/right margin
+
+    if(scrW > scrH,  // ── Landscape ──────────────────────────────────
+        innerGap = 0.05 * scrW;   // gap between sliders
+        sliderW  = 0.15 * scrW;   // width per slider (3 sliders + 2 btn-slots = 1.00)
+        slY      = scrB + 0.25;   // single row y-coord (compact, close to bottom)
+
+        // x right-edges of the three sliders (for positioning + button anchoring)
+        nRX = scrL + outerPad + sliderW;
+        rRX = nRX  + innerGap + sliderW;
+        sRX = rRX  + innerGap + sliderW;
+
+        // Buttons sit right of speed slider (btnGrpGap=0.05, btnW=0.09 each, btnGap=0.02)
+        colorBtnCX  = sRX + 0.05*scrW + 0.045*scrW;
+        guidesBtnCX = colorBtnCX + 0.09*scrW + 0.02*scrW;
+        colorBtnCY  = slY;
+        guidesBtnCY = slY;
+
+        // Polygon available zone (above slider row + TeX-label clearance)
+        polyZoneBottom = scrB + 0.44;
+    ,  // ── Portrait ───────────────────────────────────────────────────
+        scrMid = (scrL + scrR) / 2;
+
+        // Buttons below speed slider, centered
+        colorBtnCX  = scrMid - 0.28;
+        guidesBtnCX = scrMid + 0.28;
+        colorBtnCY  = scrB + 0.12;
+        guidesBtnCY = scrB + 0.12;
+
+        // Polygon available zone (above N slider)
+        polyZoneBottom = scrB + 1.20;
+    );
+
+    // ── Polygon auto-scaling (fills space above slider zone, 5 % margin all sides) ─
+    polyAvailH = scrT - polyZoneBottom;
+    polyAvailW = scrW;
+    polyMargin = 0.05 * min(polyAvailH, polyAvailW);
+    polyRadius = min(polyAvailW / 2 - polyMargin, polyAvailH / 2 - polyMargin);
+    polyCX     = (scrL + scrR) / 2;
+    polyCY     = polyZoneBottom + polyAvailH / 2;
+
+    // ── Slider repositioning — only fires when screen dimensions change ──
+    if(max(abs(scrW - prevScrW), abs(scrH - prevScrH)) > 0.01,
+
+        savedNFrac = (N - 3) / 33;
+        savedRFrac = contractionRatio;
+        savedSFrac = if(speed > 0, 1 - speed / 50, 1);
+
+        if(scrW > scrH,  // Landscape: all sliders at slY
+            nLeft.xy      = [scrL + outerPad, slY];
+            nRight.xy     = [nRX,             slY];
+            rLeft.xy      = [nRX + innerGap,  slY];
+            rRight.xy     = [rRX,             slY];
+            speedLeft.xy  = [rRX + innerGap,  slY];
+            speedRight.xy = [sRX,             slY];
+        ,  // Portrait: stacked
+            nLeft.xy      = [scrL + outerPad, scrB + 1.10];
+            nRight.xy     = [scrR - outerPad, scrB + 1.10];
+            rLeft.xy      = [scrL + outerPad, scrB + 0.75];
+            rRight.xy     = [scrR - outerPad, scrB + 0.75];
+            speedLeft.xy  = [scrL + outerPad, scrB + 0.40];
+            speedRight.xy = [scrR - outerPad, scrB + 0.40];
+        );
+
+        nKnob.xy     = nLeft.xy + savedNFrac * (nRight.xy - nLeft.xy);
+        rKnob.xy     = rLeft.xy + savedRFrac * (rRight.xy - rLeft.xy);
+        speedKnob.xy = speedLeft.xy + savedSFrac * (speedRight.xy - speedLeft.xy);
+
+        // Polygon vertices adapt to new screen / new polyRadius
+        updateVertices(N);
+        reset();
+
+        prevScrW = scrW;
+        prevScrH = scrH;
+    );
+
+    // ── N slider ──────────────────────────────────────────────────────
+    nFrac = |nLeft, nKnob| / |nLeft, nRight|;
+    newN  = max(3, min(36, round(3 + nFrac * 33)));
+    if(newN != N,
+        N                = newN;
+        contractionRatio = N / (N + 3);
+        rKnob.xy         = rLeft.xy + (N/(N+3)) * (rRight.xy - rLeft.xy);
+        updateVertices(N);
+        reset();
+    );
+    nKnob.xy = nLeft.xy + ((N - 3) / 33) * (nRight.xy - nLeft.xy);
+    drawText(1/2*(nLeft + nRight) - [0, 0.13], "N = " + N,
+             color -> [1,1,1], align -> "mid", size -> 20);
+
+    // ── r slider ──────────────────────────────────────────────────────
+    rDefault = N / (N + 3);
+    rFrac    = |rLeft, rKnob| / |rLeft, rRight|;
+    if(abs(rFrac - rDefault) < 0.02,
+        rKnob.xy         = rLeft.xy + rDefault * (rRight.xy - rLeft.xy);
+        contractionRatio = rDefault;
+    ,
+        contractionRatio = rFrac;
+    );
+
+    rSnapPos = rLeft.xy + rDefault * (rRight.xy - rLeft.xy);
+    draw(rSnapPos - [0, 0.06], rSnapPos + [0, 0.06], color -> [1.0, 0.78, 0.2], size -> 2);
+    d      = round(rDefault * 10000);
+    texStr = "$\frac{N}{N+3} = 0."
+             + floor(d/1000) + floor(mod(d,1000)/100)
+             + floor(mod(d,100)/10) + mod(d,10) + "$";
+    drawText(rSnapPos + [0, 0.09], texStr,
+             tex -> true, color -> [1.0, 0.78, 0.2], align -> "mid", size -> 14);
+    drawText(1/2*(rLeft + rRight) - [0, 0.13], "r = " + fmt4(contractionRatio),
+             color -> [1,1,1], align -> "mid", size -> 20);
+
+    // ── Speed slider ──────────────────────────────────────────────────
+    speed = round((1 - |speedLeft, speedKnob| / |speedLeft, speedRight|) * 50);
+    drawText(1/2*(speedLeft + speedRight) - [0, 0.13], "Simulation Speed",
+             color -> [1,1,1], align -> "mid", size -> 20);
+
+    // ── Toggle buttons (text-only, color = state) ─────────────────────
+    drawText([colorBtnCX,  colorBtnCY],  "COLOR",
+             color -> if(colored, [1,1,1], [0.35, 0.55, 0.55]), align -> "mid", size -> 16);
+    drawText([guidesBtnCX, guidesBtnCY], "GUIDE",
+             color -> if(guides,  [1,1,1], [0.35, 0.55, 0.55]), align -> "mid", size -> 16);
+
+    // ── Watermark ─────────────────────────────────────────────────────
+    drawText((screenbounds()_3).xy, "v2026MAY26 - Max Hoffmann",
+             align -> "right", color -> [1,1,1], xoffset -> -15, yoffset -> 20);
+
+    // ── Guide-element visibility ───────────────────────────────────────
+    currentPoint.visible = guides;
+    if(!guides, stepSegment.visible = false;);
+    forall(activeVertices, #.visible = guides);
+
+    </script>
+
+    <!-- ── Tick (animation step logic) ──────────────────────────────── -->
+    <script id="cstick" type="text/x-cindyscript">
+
+    tickCounter = mod(tickCounter + 1, 4 * speed);
+
+    if(speed < 1,
+        stepSegment.visible = false;
+        rollDice();
+        movePoint();
+    ,
+        ticksPerStep = round(speed);
+        if(tickCounter == 0,                rollDice();                   );
+        if(tickCounter == ticksPerStep,     showStep();                   );
+        if(tickCounter == 2*ticksPerStep,   movePoint();                  );
+        if(tickCounter == 3*ticksPerStep,   stepSegment.visible = false;  );
+    );
+
+    </script>
+
+    <!-- ── CindyJS configuration ─────────────────────────────────────── -->
+    <script type="text/javascript">
+    var cdy = CindyJS({
+        scripts: "cs*",
+        defaultAppearance: {
+            dimDependent: 0.7,
+            fontFamily:   "sans-serif",
+            lineSize:     1,
+            pointSize:    5.0,
+            textsize:     12.0
+        },
+        angleUnit: "°",
+        geometry: [
+            // ── Polygon corners P1–P36 ─────────────────────────────────
+            {name: "P1",  type: "Free", pos: [0,0,4], dimDependent: 1, color: [1,1,1], visible: false, size: 10},
+            {name: "P2",  type: "Free", pos: [0,0,4], dimDependent: 1, color: [1,1,1], visible: false, size: 10},
+            {name: "P3",  type: "Free", pos: [0,0,4], dimDependent: 1, color: [1,1,1], visible: false, size: 10},
+            {name: "P4",  type: "Free", pos: [0,0,4], dimDependent: 1, color: [1,1,1], visible: false, size: 10},
+            {name: "P5",  type: "Free", pos: [0,0,4], dimDependent: 1, color: [1,1,1], visible: false, size: 10},
+            {name: "P6",  type: "Free", pos: [0,0,4], dimDependent: 1, color: [1,1,1], visible: false, size: 10},
+            {name: "P7",  type: "Free", pos: [0,0,4], dimDependent: 1, color: [1,1,1], visible: false, size: 10},
+            {name: "P8",  type: "Free", pos: [0,0,4], dimDependent: 1, color: [1,1,1], visible: false, size: 10},
+            {name: "P9",  type: "Free", pos: [0,0,4], dimDependent: 1, color: [1,1,1], visible: false, size: 10},
+            {name: "P10", type: "Free", pos: [0,0,4], dimDependent: 1, color: [1,1,1], visible: false, size: 10},
+            {name: "P11", type: "Free", pos: [0,0,4], dimDependent: 1, color: [1,1,1], visible: false, size: 10},
+            {name: "P12", type: "Free", pos: [0,0,4], dimDependent: 1, color: [1,1,1], visible: false, size: 10},
+            {name: "P13", type: "Free", pos: [0,0,4], dimDependent: 1, color: [1,1,1], visible: false, size: 10},
+            {name: "P14", type: "Free", pos: [0,0,4], dimDependent: 1, color: [1,1,1], visible: false, size: 10},
+            {name: "P15", type: "Free", pos: [0,0,4], dimDependent: 1, color: [1,1,1], visible: false, size: 10},
+            {name: "P16", type: "Free", pos: [0,0,4], dimDependent: 1, color: [1,1,1], visible: false, size: 10},
+            {name: "P17", type: "Free", pos: [0,0,4], dimDependent: 1, color: [1,1,1], visible: false, size: 10},
+            {name: "P18", type: "Free", pos: [0,0,4], dimDependent: 1, color: [1,1,1], visible: false, size: 10},
+            {name: "P19", type: "Free", pos: [0,0,4], dimDependent: 1, color: [1,1,1], visible: false, size: 10},
+            {name: "P20", type: "Free", pos: [0,0,4], dimDependent: 1, color: [1,1,1], visible: false, size: 10},
+            {name: "P21", type: "Free", pos: [0,0,4], dimDependent: 1, color: [1,1,1], visible: false, size: 10},
+            {name: "P22", type: "Free", pos: [0,0,4], dimDependent: 1, color: [1,1,1], visible: false, size: 10},
+            {name: "P23", type: "Free", pos: [0,0,4], dimDependent: 1, color: [1,1,1], visible: false, size: 10},
+            {name: "P24", type: "Free", pos: [0,0,4], dimDependent: 1, color: [1,1,1], visible: false, size: 10},
+            {name: "P25", type: "Free", pos: [0,0,4], dimDependent: 1, color: [1,1,1], visible: false, size: 10},
+            {name: "P26", type: "Free", pos: [0,0,4], dimDependent: 1, color: [1,1,1], visible: false, size: 10},
+            {name: "P27", type: "Free", pos: [0,0,4], dimDependent: 1, color: [1,1,1], visible: false, size: 10},
+            {name: "P28", type: "Free", pos: [0,0,4], dimDependent: 1, color: [1,1,1], visible: false, size: 10},
+            {name: "P29", type: "Free", pos: [0,0,4], dimDependent: 1, color: [1,1,1], visible: false, size: 10},
+            {name: "P30", type: "Free", pos: [0,0,4], dimDependent: 1, color: [1,1,1], visible: false, size: 10},
+            {name: "P31", type: "Free", pos: [0,0,4], dimDependent: 1, color: [1,1,1], visible: false, size: 10},
+            {name: "P32", type: "Free", pos: [0,0,4], dimDependent: 1, color: [1,1,1], visible: false, size: 10},
+            {name: "P33", type: "Free", pos: [0,0,4], dimDependent: 1, color: [1,1,1], visible: false, size: 10},
+            {name: "P34", type: "Free", pos: [0,0,4], dimDependent: 1, color: [1,1,1], visible: false, size: 10},
+            {name: "P35", type: "Free", pos: [0,0,4], dimDependent: 1, color: [1,1,1], visible: false, size: 10},
+            {name: "P36", type: "Free", pos: [0,0,4], dimDependent: 1, color: [1,1,1], visible: false, size: 10},
+
+            // ── Step visualisation segment ──────────────────────────────
+            {name: "stepSegStart", type: "Free",  pos: [4,0,4],  color: [1,0,0], visible: false, labeled: true},
+            {name: "stepSegEnd",   type: "Free",  pos: [-4,0,4], color: [1,0,0], visible: false, labeled: true},
+            {name: "stepSegment",  type: "Segment", color: [1,1,0],
+             args: ["stepSegStart","stepSegEnd"],
+             alpha: 0.385, visible: false, plane: -15, size: 8, dashtype: "tightdash"},
+
+            // ── Current walk position ───────────────────────────────────
+            {name: "currentPoint", type: "Free", pos: [0,0,4],
+             color: [1,0.498,0], tracelength: 200, size: 7, border: false},
+
+            // ── Slider endpoints: initial portrait positions.
+            //    csdraw repositions these on every orientation change.
+
+            // N slider  (portrait y ≈ scrB + 1.05)
+            {name: "nLeft",  type: "Free", pos: [-4.4,-5.2,4], color: [1,0,0], visible: false, pinned: true},
+            {name: "nRight", type: "Free", pos: [ 4.4,-5.2,4], color: [1,0,0], visible: false, pinned: true},
+            {name: "nTrack", type: "Segment", color: [1,1,1], args: ["nLeft","nRight"], size: 4},
+            {name: "nKnob",  type: "PointOnSegment", pos: [-3.867,-5.2,4],
+             color: [1,1,1], args: ["nTrack"], size: 8, border: false},
+
+            // r slider  (portrait y ≈ scrB + 0.65)
+            {name: "rLeft",  type: "Free", pos: [-4.4,-6.6,4], color: [1,0,0], visible: false, pinned: true},
+            {name: "rRight", type: "Free", pos: [ 4.4,-6.6,4], color: [1,0,0], visible: false, pinned: true},
+            {name: "rTrack", type: "Segment", color: [1,1,1], args: ["rLeft","rRight"], size: 4},
+            {name: "rKnob",  type: "PointOnSegment", pos: [1.1,-6.6,4],
+             color: [1,1,1], args: ["rTrack"], size: 8, border: false},
+
+            // Speed slider  (portrait y ≈ scrB + 0.25)
+            {name: "speedLeft",  type: "Free", pos: [-4.4,-7.8,4], color: [1,0,0], visible: false, pinned: true},
+            {name: "speedRight", type: "Free", pos: [ 4.4,-7.8,4], color: [1,0,0], visible: false, pinned: true},
+            {name: "speedTrack", type: "Segment", color: [1,1,1], args: ["speedLeft","speedRight"], size: 4},
+            {name: "speedKnob",  type: "PointOnSegment", pos: [0,-7.8,4],
+             color: [1,1,1], args: ["speedTrack"], size: 8, border: false}
+        ],
+        animation: {
+            autoplay:   false,
+            controls:   false,
+            speed:      0.8762886597938144,
+            speedRange: [0.0, 1.0],
+            accuracy:   1
+        },
+        autoplay:     false,
+        animcontrols: false,
+        ports: [{
+            id:        "CSCanvas",
+            // visibleRect [left, top, right, bottom] in math coords (y up).
+            // Width 2.6, height 3.5 — the taller-than-wide shape ensures the
+            // full 3.5-unit height is always shown in landscape (y-constrained),
+            // giving scrB = -2.1 and a safe 1.1-unit gap below the polygon.
+            // In portrait, CindyJS shows extra height (x-constrained), pushing
+            // scrB even lower and giving more room for the stacked sliders.
+            transform: [{visibleRect: [-1.3, 1.4, 1.3, -2.1]}],
+            background: "rgb(0,51,51)"
+        }],
+        csconsole: false,
+        cinderella: {build: 2124, version: [3, 0, 2124]}
+    });
+    </script>
+</head>
+<body>
+    <div id="CSCanvas"></div>
+</body>
+</html>
